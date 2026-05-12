@@ -10,6 +10,8 @@ export async function saveProfile(formData: FormData) {
     throw new Error("Unauthorized");
   }
 
+  const userId = session.user.id;
+
   const name = formData.get("org-name") as string;
   const mission = formData.get("mission") as string;
   const sector = formData.get("sector") as string;
@@ -55,7 +57,7 @@ export async function saveProfile(formData: FormData) {
       });
 
       await tx.user.update({
-        where: { id: session.user.id },
+        where: { id: userId },
         data: { organizationId: org.id },
       });
     });
