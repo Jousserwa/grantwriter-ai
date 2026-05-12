@@ -1,46 +1,37 @@
 import React from 'react';
 import { Search, Filter, MapPin, DollarSign, Calendar } from 'lucide-react';
+import prisma from "@/lib/prisma";
+import { createProposalFromGrant } from "../editor/actions";
 
-const grants = [
-  {
-    id: 1,
-    title: 'Clean Energy Innovation Grant',
-    funder: 'U.S. Department of Energy',
-    amount: '$500,000 - $2,000,000',
-    location: 'United States',
-    deadline: 'Oct 15, 2024',
-    category: 'Energy'
-  },
-  {
-    id: 2,
-    title: 'Sustainable Agriculture Initiative',
-    funder: 'World Bank',
-    amount: '$1,000,000',
-    location: 'Global',
-    deadline: 'Nov 30, 2024',
-    category: 'Agriculture'
-  },
-  {
-    id: 3,
-    title: 'Horizon Europe Cluster 5',
-    funder: 'European Commission',
-    amount: '€2,000,000 - €5,000,000',
-    location: 'Europe',
-    deadline: 'Sept 15, 2024',
-    category: 'Climate'
-  },
-  {
-    id: 4,
-    title: 'Youth Education Fund',
-    funder: 'UNESCO',
-    amount: '$50,000 - $200,000',
-    location: 'Developing Nations',
-    deadline: 'Dec 01, 2024',
-    category: 'Education'
-  }
-];
+export default async function GrantsPage() {
+  const dbGrants = await prisma.grant.findMany({
+    orderBy: { createdAt: 'desc' }
+  });
 
-export default function GrantsPage() {
+  // Fallback for demo if DB is empty
+  const fallbackGrants = [
+    {
+      id: '1',
+      title: 'Clean Energy Innovation Grant',
+      funder: 'U.S. Department of Energy',
+      amount: '$500,000 - $2,000,000',
+      region: 'United States',
+      deadline: new Date('2024-10-15'),
+      sector: 'Energy'
+    },
+    {
+      id: '2',
+      title: 'Sustainable Agriculture Initiative',
+      funder: 'World Bank',
+      amount: '$1,000,000',
+      region: 'Global',
+      deadline: new Date('2024-11-30'),
+      sector: 'Agriculture'
+    }
+  ];
+
+  const displayGrants = dbGrants.length > 0 ? dbGrants : fallbackGrants;
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -99,13 +90,13 @@ export default function GrantsPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-4">
-            {grants.map((grant) => (
-              <div key={grant.id} className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 hover:ring-blue-300 transition-all cursor-pointer">
+            {displayGrants.map((grant: any) => (
+              <div key={grant.id} className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 hover:ring-blue-300 transition-all">
                 <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
-                        {grant.category}
+                      <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+                        {grant.sector}
                       </span>
                       <span className="text-xs text-slate-500 font-medium">{grant.funder}</span>
                     </div>
@@ -117,11 +108,11 @@ export default function GrantsPage() {
                       </div>
                       <div className="flex items-center text-sm text-slate-500">
                         <MapPin className="mr-1 h-4 w-4" />
-                        {grant.location}
+                        {grant.region}
                       </div>
                       <div className="flex items-center text-sm text-slate-500">
                         <Calendar className="mr-1 h-4 w-4" />
-                        Deadline: {grant.deadline}
+                        Deadline: {grant.deadline ? new Date(grant.deadline).toLocaleDateString() : 'N/A'}
                       </div>
                     </div>
                   </div>
@@ -129,9 +120,11 @@ export default function GrantsPage() {
                     <button className="flex-1 md:flex-none inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
                       Save
                     </button>
-                    <button className="flex-1 md:flex-none inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700">
-                      Generate Proposal
-                    </button>
+                    <form action={createProposalFromGrant.bind(null, grant.id)}>
+                      <button type="submit" className="w-full md:w-auto inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700">
+                        Generate Proposal
+                      </button>
+                    </form>
                   </div>
                 </div>
               </div>
