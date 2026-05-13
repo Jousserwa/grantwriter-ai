@@ -11,8 +11,20 @@ export async function updateProposalAction(id: string, content: string) {
     throw new Error("Unauthorized");
   }
 
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id }
+  });
+
+  const proposal = await prisma.proposal.findUnique({
+    where: { id }
+  });
+
+  if (!proposal || !user || user.organizationId !== proposal.organizationId) {
+    throw new Error("Unauthorized");
+  }
+
   // Calculate word count (simple)
-  const wordCount = content.split(/\s+/).filter(Boolean).length;
+  const wordCount = content.replace(/<[^>]*>/g, ' ').split(/\s+/).filter(Boolean).length;
 
   await prisma.proposal.update({
     where: { id },
@@ -23,6 +35,35 @@ export async function updateProposalAction(id: string, content: string) {
   });
 
   revalidatePath(`/dashboard/editor/${id}`);
+}
+
+export async function deleteProposalAction(id: string) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id }
+  });
+
+  const proposal = await prisma.proposal.findUnique({
+    where: { id }
+  });
+
+  if (!proposal || !user || user.organizationId !== proposal.organizationId) {
+    throw new Error("Unauthorized");
+  }
+
+  // Only owners can delete
+  if (user.organizationRole !== 'OWNER') {
+    throw new Error("Only organization owners can delete proposals.");
+  }
+
+  await prisma.proposal.delete({
+    where: { id }
+  });
+
+  revalidatePath("/dashboard/history");
+  redirect("/dashboard/history");
 }
 
 export async function createProposalFromGrant(grantId: string) {

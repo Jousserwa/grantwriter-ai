@@ -1,7 +1,17 @@
 import React from 'react';
-import { Search, Filter, MapPin, DollarSign, Calendar } from 'lucide-react';
+import { Search, MapPin, DollarSign, Calendar } from 'lucide-react';
 import prisma from "@/lib/prisma";
 import { createProposalFromGrant } from "../editor/actions";
+
+interface GrantDisplay {
+  id: string;
+  title: string;
+  funder: string;
+  amount: string | null;
+  region: string | null;
+  deadline: Date | null;
+  sector: string | null;
+}
 
 export default async function GrantsPage() {
   const dbGrants = await prisma.grant.findMany({
@@ -9,7 +19,7 @@ export default async function GrantsPage() {
   });
 
   // Fallback for demo if DB is empty
-  const fallbackGrants = [
+  const fallbackGrants: GrantDisplay[] = [
     {
       id: '1',
       title: 'Clean Energy Innovation Grant',
@@ -30,7 +40,17 @@ export default async function GrantsPage() {
     }
   ];
 
-  const displayGrants = dbGrants.length > 0 ? dbGrants : fallbackGrants;
+  const displayGrants: GrantDisplay[] = dbGrants.length > 0 
+    ? dbGrants.map(g => ({
+        id: g.id,
+        title: g.title,
+        funder: g.funder,
+        amount: g.amount,
+        region: g.region,
+        deadline: g.deadline,
+        sector: g.sector
+      }))
+    : fallbackGrants;
 
   return (
     <div className="space-y-8">
@@ -90,7 +110,7 @@ export default async function GrantsPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-4">
-            {displayGrants.map((grant: any) => (
+            {displayGrants.map((grant) => (
               <div key={grant.id} className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 hover:ring-blue-300 transition-all">
                 <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                   <div className="space-y-2">

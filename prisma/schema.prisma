@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
 }
 
 model Account {
@@ -15,12 +15,12 @@ model Account {
   type               String
   provider           String
   providerAccountId  String
-  refresh_token      String?  @db.Text
-  access_token       String?  @db.Text
+  refresh_token      String?  
+  access_token       String?  
   expires_at         Int?
   token_type         String?
   scope              String?
-  id_token           String?  @db.Text
+  id_token           String?  
   session_state      String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -47,6 +47,7 @@ model User {
   sessions      Session[]
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id])
+  organizationRole OrganizationRole @default(MEMBER)
   proposals      Proposal[]
   deadlines      DeadlineTracker[]
 }
@@ -54,6 +55,11 @@ model User {
 enum UserRole {
   ADMIN
   USER
+}
+
+enum OrganizationRole {
+  OWNER
+  MEMBER
 }
 
 model VerificationToken {
@@ -67,11 +73,11 @@ model VerificationToken {
 model Organization {
   id                String   @id @default(cuid())
   name              String
-  mission           String?  @db.Text
+  mission           String?  
   sector            String?
   country           String?
   teamSize          Int?
-  pastProjects      String?  @db.Text
+  pastProjects      String?  
   financials        Json?
   subscriptionStatus SubscriptionType @default(FREE)
   users             User[]
@@ -93,12 +99,12 @@ model Grant {
   id           String   @id @default(cuid())
   title        String
   funder       String
-  description  String?  @db.Text
+  description  String?  
   amount       String?
   deadline     DateTime?
   sector       String?
   region       String?
-  requirements String?  @db.Text
+  requirements String?  
   url          String?
   proposals    Proposal[]
   deadlines    DeadlineTracker[]
@@ -109,7 +115,7 @@ model Grant {
 model Proposal {
   id              String   @id @default(cuid())
   title           String
-  content         String?  @db.Text
+  content         String?  
   status          ProposalStatus @default(DRAFT)
   grantId         String
   grant           Grant    @relation(fields: [grantId], references: [id])
@@ -119,6 +125,10 @@ model Proposal {
   user            User     @relation(fields: [userId], references: [id])
   wordCount       Int?
   complianceScore Float?
+  submissionDate  DateTime?
+  feedback        String?
+  finalPdfUrl     String?
+  fundingSecured  Float?
   budget          Budget?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -129,6 +139,8 @@ enum ProposalStatus {
   COMPLIANCE_CHECK
   FINAL
   SUBMITTED
+  WON
+  LOST
 }
 
 model Budget {
@@ -136,7 +148,7 @@ model Budget {
   proposalId String   @unique
   proposal   Proposal @relation(fields: [proposalId], references: [id])
   items      Json?
-  narrative  String?  @db.Text
+  narrative  String?  
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }

@@ -1,8 +1,12 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import Collaboration from '@tiptap/extension-collaboration'
+import CollaborationCursor from '@tiptap/extension-collaboration-cursor'
+import * as Y from 'yjs'
+import { WebsocketProvider } from 'y-websocket'
 import { 
   Bold, 
   Italic, 
@@ -18,25 +22,89 @@ import {
 } from 'lucide-react';
 import { updateProposalAction } from "@/app/dashboard/editor/actions";
 
+import { Proposal } from "@prisma/client";
+
 interface ProposalEditorProps {
-  proposal: any; // Type this properly based on Prisma
+  proposal: Proposal;
+  userId?: string;
+  userName?: string;
 }
 
-export default function ProposalEditor({ proposal }: ProposalEditorProps) {
+const COLORS = ['#958DF1', '#F98181', '#FBBC88', '#FAF594', '#70C2B4', '#94FADB', '#B9EDF8'];
+
+export default function ProposalEditor({ proposal, userId, userName }: ProposalEditorProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
+
+  // Set up Yjs
+  const { ydoc, provider } = useMemo(() => {
+    const doc = new Y.Doc();
+    // Use a unique room name for each proposal
+    const roomName = `grant-proposal-${proposal.id}`;
+    
+    // In a real app, this would be a secure websocket server
+    // For demo purposes, we'll use a public one or assume a local one
+    const wsProvider = new WebsocketProvider(
+      process.env.NEXT_PUBLIC_WS_URL || 'wss://demos.yjs.dev', 
+      roomName, 
+      doc
+    );
+    
+    return { ydoc: doc, provider: wsProvider };
+  }, [proposal.id]);
+
+  useEffect(() => {
+    provider.on('status', (event: { status: 'connecting' | 'connected' | 'disconnected' }) => {
+      setStatus(event.status);
+    });
+
+    return () => {
+      provider.disconnect();
+      ydoc.destroy();
+    };
+  }, [provider, ydoc]);
+
+  const [userColor] = useState(() => COLORS[Math.floor(Math.random() * COLORS.length)]);
 
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        // The Collaboration extension comes with its own history handling
+        // @ts-expect-error - history property might not be in the type definition but is accepted at runtime
+        history: false,
+      }),
+      Collaboration.configure({
+        document: ydoc,
+      }),
+      CollaborationCursor.configure({
+        provider: provider,
+        user: {
+          name: userName || 'Anonymous User',
+          color: userColor,
+        },
+      }),
     ],
-    content: proposal.content || '<p>Start writing your proposal...</p>',
+    // content: proposal.content || '<p>Start writing your proposal...</p>', // Removed as Collaboration handles content
     editorProps: {
       attributes: {
         class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-2xl focus:outline-none min-h-[500px] p-8',
       },
     },
   });
+
+  // Initial content sync if the document is empty
+  useEffect(() => {
+    if (editor && proposal.content && ydoc.getText('default').length === 0) {
+      // Only set initial content if it's a new collaborative session for this doc
+      // Wait a bit to ensure we didn't just connect to an existing session
+      setTimeout(() => {
+        if (ydoc.getText('default').length === 0) {
+          editor.commands.setContent(proposal.content);
+        }
+      }, 500);
+    }
+  }, [editor, proposal.content, ydoc]);
 
   const handleSave = async () => {
     if (!editor) return;
@@ -136,8 +204,10 @@ export default function ProposalEditor({ proposal }: ProposalEditorProps) {
               <span>Characters: {editor.getText().length}</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-green-500"></span>
-              <span>Online Collaboration Active</span>
+              <span className={`h-2 w-2 rounded-full ${status === 'connected' ? 'bg-green-500' : status === 'connecting' ? 'bg-yellow-500 animate-pulse' : 'bg-red-500'}`}></span>
+              <span>
+                {status === 'connected' ? 'Online Collaboration Active' : status === 'connecting' ? 'Connecting...' : 'Offline'}
+              </span>
             </div>
           </div>
         </div>

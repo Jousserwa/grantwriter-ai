@@ -15,7 +15,7 @@ export default async function ProfilePage() {
     org = user?.organization;
   }
 
-  const financials = org?.financials as any;
+  const financials = org?.financials as { annualBudget?: string } | null;
 
   return (
     <div className="max-w-4xl space-y-8">

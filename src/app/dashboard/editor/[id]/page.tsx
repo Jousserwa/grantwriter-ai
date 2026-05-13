@@ -4,13 +4,13 @@ import prisma from "@/lib/prisma";
 import ProposalEditor from "@/components/ProposalEditor";
 import { notFound } from "next/navigation";
 
-export default async function EditorPage({ params }: { params: { id: string } }) {
+export default async function EditorPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.id) {
     return <div>Please sign in to access the editor.</div>;
   }
 
-  const { id } = await (params as any); // Next.js 15 params are async
+  const { id } = await params;
 
   const proposal = await prisma.proposal.findUnique({
     where: { id },
@@ -35,7 +35,11 @@ export default async function EditorPage({ params }: { params: { id: string } })
 
   return (
     <div className="h-full">
-      <ProposalEditor proposal={proposal} />
+      <ProposalEditor 
+        proposal={proposal} 
+        userId={session.user.id}
+        userName={session.user.name || session.user.email?.split('@')[0] || 'User'}
+      />
     </div>
   );
 }

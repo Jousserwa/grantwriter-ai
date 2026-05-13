@@ -3,6 +3,8 @@ import { headers } from "next/headers";
 import crypto from "crypto";
 import prisma from "@/lib/prisma";
 
+export const dynamic = 'force-dynamic';
+
 const IPN_SECRET = process.env.NOWPAYMENTS_IPN_SECRET;
 
 export async function POST(req: Request) {
@@ -23,7 +25,7 @@ export async function POST(req: Request) {
     }
 
     const data = JSON.parse(body);
-    const { payment_status, order_id, pay_address, price_amount } = data;
+    const { payment_status } = data;
 
     if (payment_status === "finished") {
       // Update payment status and activate subscription
