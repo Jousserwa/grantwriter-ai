@@ -1,9 +1,8 @@
+export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import crypto from "crypto";
 import prisma from "@/lib/prisma";
-
-export const dynamic = 'force-dynamic';
 
 const IPN_SECRET = process.env.NOWPAYMENTS_IPN_SECRET;
 

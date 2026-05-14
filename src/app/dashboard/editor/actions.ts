@@ -54,7 +54,7 @@ export async function deleteProposalAction(id: string) {
   }
 
   // Only owners can delete
-  if (user.organizationRole !== 'OWNER') {
+  if (user?.organizationRole !== 'OWNER') {
     throw new Error("Only organization owners can delete proposals.");
   }
 

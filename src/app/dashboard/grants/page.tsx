@@ -41,7 +41,7 @@ export default async function GrantsPage() {
   ];
 
   const displayGrants: GrantDisplay[] = dbGrants.length > 0 
-    ? dbGrants.map(g => ({
+    ? (dbGrants as any[]).map((g: any) => ({
         id: g.id,
         title: g.title,
         funder: g.funder,

@@ -9,7 +9,8 @@ import {
   History, 
   Users, 
   Settings,
-  LogOut
+  LogOut,
+  Sparkles
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -23,6 +24,7 @@ const navItems = [
   { name: 'Org Profile', href: '/dashboard/profile', icon: Building2 },
   { name: 'Grant Discovery', href: '/dashboard/grants', icon: Search },
   { name: 'Proposal Editor', href: '/dashboard/editor', icon: FileEdit },
+  { name: 'Budget Tools', href: '/dashboard/budget', icon: Sparkles },
   { name: 'Deadlines', href: '/dashboard/deadlines', icon: Calendar },
   { name: 'History', href: '/dashboard/history', icon: History },
   { name: 'Team', href: '/dashboard/team', icon: Users },

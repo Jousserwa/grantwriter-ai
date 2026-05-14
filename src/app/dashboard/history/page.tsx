@@ -33,8 +33,8 @@ export default async function HistoryPage() {
 
   // Calculate stats
   const totalProposals = proposals.length;
-  const wonProposals = proposals.filter(p => p.status === 'WON').length;
-  const totalFunding = proposals.reduce((acc, p) => acc + (p.fundingSecured || 0), 0);
+  const wonProposals = proposals.filter((p: any) => p.status === 'WON').length;
+  const totalFunding = proposals.reduce((acc: number, p: any) => acc + (p.fundingSecured || 0), 0);
 
   return (
     <div className="space-y-8">
@@ -68,7 +68,7 @@ export default async function HistoryPage() {
           </div>
         ) : (
           <div className="divide-y divide-slate-100">
-            {proposals.map((proposal) => (
+            {proposals.map((proposal: any) => (
               <ProposalItem 
                 key={proposal.id} 
                 proposal={proposal} 

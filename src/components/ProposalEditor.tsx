@@ -18,9 +18,12 @@ import {
   AlertCircle,
   Clock,
   CheckCircle,
-  ChevronRight
+  ChevronRight,
+  X,
+  Calculator
 } from 'lucide-react';
 import { updateProposalAction } from "@/app/dashboard/editor/actions";
+import BudgetNarrativeGenerator from './BudgetNarrativeGenerator';
 
 import { Proposal } from "@prisma/client";
 
@@ -36,6 +39,7 @@ export default function ProposalEditor({ proposal, userId, userName }: ProposalE
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
+  const [showBudgetGenerator, setShowBudgetGenerator] = useState(false);
 
   // Set up Yjs
   const { ydoc, provider } = useMemo(() => {
@@ -119,6 +123,14 @@ export default function ProposalEditor({ proposal, userId, userName }: ProposalE
     }
   };
 
+  const handleInsertNarrative = (narrative: string) => {
+    if (editor) {
+      // Use insertContent to append the narrative to the editor
+      editor.commands.insertContent(narrative);
+      setShowBudgetGenerator(false);
+    }
+  };
+
   if (!editor) {
     return null;
   }
@@ -178,6 +190,14 @@ export default function ProposalEditor({ proposal, userId, userName }: ProposalE
               className={`rounded p-2 hover:bg-slate-200 ${editor.isActive('bulletList') ? 'bg-slate-200 text-blue-600' : 'text-slate-600'}`}
             >
               <List className="h-4 w-4" />
+            </button>
+            
+            <button 
+              onClick={() => setShowBudgetGenerator(!showBudgetGenerator)}
+              className={`rounded p-2 hover:bg-slate-200 ${showBudgetGenerator ? 'bg-slate-200 text-blue-600' : 'text-slate-600'}`}
+              title="Budget Narrative Generator"
+            >
+              <Calculator className="h-4 w-4" />
             </button>
             
             <div className="mx-2 h-6 w-px bg-slate-200" />
@@ -273,6 +293,20 @@ export default function ProposalEditor({ proposal, userId, userName }: ProposalE
           </div>
         </div>
       </div>
+
+      {showBudgetGenerator && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
+          <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <button 
+              onClick={() => setShowBudgetGenerator(false)}
+              className="absolute right-4 top-4 z-10 rounded-full bg-slate-100 p-2 text-slate-500 hover:bg-slate-200"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <BudgetNarrativeGenerator onInsert={handleInsertNarrative} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
