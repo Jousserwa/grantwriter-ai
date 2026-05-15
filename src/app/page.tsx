@@ -40,7 +40,7 @@ export default function LandingPage() {
               <a href="#pricing" className="hover:text-blue-600 transition-colors">Pricing</a>
             </nav>
             <div className="flex items-center gap-5">
-              <Link href="/api/auth/signin" className="hidden sm:block text-sm font-bold text-slate-600 hover:text-slate-900 transition-colors">
+              <Link href="/auth/signin" className="hidden sm:block text-sm font-bold text-slate-600 hover:text-slate-900 transition-colors">
                 Sign In
               </Link>
               <Link href="/dashboard" className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-sm font-bold rounded-xl text-white bg-slate-900 hover:bg-slate-800 transition-all shadow-md active:scale-95">

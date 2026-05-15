@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 export default async function EditorRedirectPage() {
   const session = await auth();
   if (!session?.user?.id) {
-    redirect("/api/auth/signin");
+    redirect("/auth/signin");
   }
 
   const user = await prisma.user.findUnique({
