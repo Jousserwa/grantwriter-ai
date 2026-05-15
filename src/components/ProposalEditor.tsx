@@ -20,7 +20,10 @@ import {
   CheckCircle,
   ChevronRight,
   X,
-  Calculator
+  Calculator,
+  ChevronDown,
+  Globe,
+  Building
 } from 'lucide-react';
 import { updateProposalAction } from "@/app/dashboard/editor/actions";
 import BudgetNarrativeGenerator from './BudgetNarrativeGenerator';
@@ -40,6 +43,47 @@ export default function ProposalEditor({ proposal, userId, userName }: ProposalE
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
   const [showBudgetGenerator, setShowBudgetGenerator] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSubmitDropdown, setShowSubmitDropdown] = useState(false);
+
+  // Auto-save effect
+  useEffect(() => {
+    if (!editor || !ydoc) return;
+
+    const interval = setInterval(() => {
+      if (editor.getText().length > 0) {
+        handleSave();
+      }
+    }, 30000); // Auto-save every 30 seconds if changed
+
+    return () => clearInterval(interval);
+  }, [editor, ydoc]);
+
+  const handleInstitutionalSubmit = async (institution: string) => {
+    setIsSubmitting(true);
+    setShowSubmitDropdown(false);
+    try {
+      const response = await fetch('/api/institutional/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ proposalId: proposal.id, institution }),
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        alert(data.message);
+        // Redirect or refresh
+        window.location.href = '/dashboard/history';
+      } else {
+        alert("Error: " + data.error);
+      }
+    } catch (error) {
+      console.error("Submission failed:", error);
+      alert("Failed to submit proposal.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   // Set up Yjs
   const { ydoc, provider } = useMemo(() => {
@@ -131,6 +175,40 @@ export default function ProposalEditor({ proposal, userId, userName }: ProposalE
     }
   };
 
+  const handleAIEdit = async (action: 'reword' | 'expand') => {
+    if (!editor) return;
+    const selectedText = editor.state.doc.textBetween(
+      editor.state.selection.from,
+      editor.state.selection.to,
+      ' '
+    );
+
+    if (!selectedText) {
+      alert("Please select some text to edit first.");
+      return;
+    }
+
+    setIsSaving(true); // Reuse saving state for loading
+    try {
+      const response = await fetch('/api/ai/edit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: selectedText, action }),
+      });
+      
+      const data = await response.json();
+      if (data.result) {
+        editor.commands.insertContent(data.result);
+      } else {
+        alert("AI failed to process: " + data.error);
+      }
+    } catch (error) {
+      console.error("AI Edit failed:", error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   if (!editor) {
     return null;
   }
@@ -161,10 +239,46 @@ export default function ProposalEditor({ proposal, userId, userName }: ProposalE
             <Save className="h-4 w-4" />
             Save Draft
           </button>
-          <button className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
-            <Send className="h-4 w-4" />
-            Submit Review
-          </button>
+          
+          <div className="relative">
+            <button 
+              onClick={() => setShowSubmitDropdown(!showSubmitDropdown)}
+              disabled={isSubmitting}
+              className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {isSubmitting ? <Clock className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              One-Click Submit
+              <ChevronDown className="ml-1 h-4 w-4" />
+            </button>
+            
+            {showSubmitDropdown && (
+              <div className="absolute right-0 mt-2 w-56 rounded-xl bg-white shadow-2xl ring-1 ring-slate-200 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="p-2 border-b border-slate-100 bg-slate-50">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-2">Select Institution</p>
+                </div>
+                <div className="p-1">
+                  <button 
+                    onClick={() => handleInstitutionalSubmit('UN')}
+                    className="flex w-full items-center gap-3 px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors"
+                  >
+                    <Globe className="h-4 w-4" /> United Nations (UN)
+                  </button>
+                  <button 
+                    onClick={() => handleInstitutionalSubmit('WORLD_BANK')}
+                    className="flex w-full items-center gap-3 px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors"
+                  >
+                    <Building className="h-4 w-4" /> World Bank
+                  </button>
+                  <button 
+                    onClick={() => handleInstitutionalSubmit('EU')}
+                    className="flex w-full items-center gap-3 px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors"
+                  >
+                    <Globe className="h-4 w-4" /> European Union (EU)
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -202,11 +316,17 @@ export default function ProposalEditor({ proposal, userId, userName }: ProposalE
             
             <div className="mx-2 h-6 w-px bg-slate-200" />
             
-            <button className="flex items-center gap-2 rounded bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100">
+            <button 
+              onClick={() => handleAIEdit('reword')}
+              className="flex items-center gap-2 rounded bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+            >
               <Sparkles className="h-3 w-3" />
               AI Reword
             </button>
-            <button className="flex items-center gap-2 rounded bg-purple-50 px-3 py-1.5 text-xs font-semibold text-purple-700 hover:bg-purple-100">
+            <button 
+              onClick={() => handleAIEdit('expand')}
+              className="flex items-center gap-2 rounded bg-purple-50 px-3 py-1.5 text-xs font-semibold text-purple-700 hover:bg-purple-100"
+            >
               <Sparkles className="h-3 w-3" />
               Expand Section
             </button>

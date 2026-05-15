@@ -10,7 +10,8 @@ import {
   Users, 
   Settings,
   LogOut,
-  Sparkles
+  Sparkles,
+  CreditCard
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -28,6 +29,7 @@ const navItems = [
   { name: 'Deadlines', href: '/dashboard/deadlines', icon: Calendar },
   { name: 'History', href: '/dashboard/history', icon: History },
   { name: 'Team', href: '/dashboard/team', icon: Users },
+  { name: 'Billing', href: '/dashboard/billing', icon: CreditCard },
 ];
 
 export default function Sidebar() {

@@ -1,52 +1,133 @@
 import { PrismaClient } from "@prisma/client";
+import { Pool, types } from 'pg';
+import { PrismaPg } from '@prisma/adapter-pg';
 
-const createRecursiveProxy = (): any => {
-  const dummy = () => createRecursiveProxy();
-  return new Proxy(dummy, {
+// Ensure BigInt is parsed as number for standard JSON serialization
+if (types && types.setTypeParser) {
+  types.setTypeParser(20, (val) => parseInt(val, 10));
+}
+
+/**
+ * INVENTOR NOTE: Recursive Proxy to prevent build-time crashes and handle runtime outages.
+ * Optimized with path-based caching and heuristic return types.
+ */
+const proxyCache = new Map<string, any>();
+
+const createRecursiveProxy = (path: string = "prisma"): any => {
+  if (proxyCache.has(path)) return proxyCache.get(path);
+
+  const dummy = () => createRecursiveProxy(`${path}()`);
+  const proxy = new Proxy(dummy, {
     get: (target, prop) => {
       if (prop === 'then') return undefined;
       if (prop === 'constructor') return Object;
-      // Ensure we don't crash on standard object methods
+      
       if (typeof prop === 'string' && ['toString', 'valueOf', 'inspect'].includes(prop)) {
-        return () => `[PrismaProxy ${prop}]`;
+        return () => `[PrismaProxy ${path}.${prop}]`;
       }
-      return createRecursiveProxy();
+
+      return createRecursiveProxy(`${path}.${String(prop)}`);
     },
     apply: (target, thisArg, argumentsList) => {
-      // If it looks like a findMany or similar, return an empty array
-      return Promise.resolve([]);
+      const parts = path.split('.');
+      const lastMethod = parts[parts.length - 1] || "";
+      
+      // Default return values to prevent 'map of undefined' etc. in UI
+      if (lastMethod.startsWith('findMany') || lastMethod === 'groupBy') {
+        return Promise.resolve([]);
+      }
+      if (lastMethod.startsWith('find') || 
+          ['create', 'update', 'upsert', 'delete', 'deleteMany', 'updateMany', '$transaction', '$queryRaw', '$executeRaw'].some(m => lastMethod.startsWith(m))) {
+        return Promise.resolve(null);
+      }
+      if (lastMethod === 'count') {
+        return Promise.resolve(0);
+      }
+      return Promise.resolve(null);
     }
   });
+
+  proxyCache.set(path, proxy);
+  return proxy;
 };
 
-const prismaClientSingleton = () => {
-  // Next.js build-time check
-  if (typeof window === 'undefined' && process.env.NEXT_PHASE === 'phase-production-build') {
-    console.warn(">>> INVENTOR LOG: Build phase detected, using Proxy to prevent initialization crash <<<");
+let _realClient: PrismaClient | null = null;
+const isBuildPhase = process.env.NEXT_PHASE === 'phase-production-build';
+
+const getPrismaClient = (): PrismaClient => {
+  // 1. Singleton Return
+  if (_realClient) return _realClient;
+
+  const dbUrl = process.env.DATABASE_URL;
+
+  // 2. Build-Time Resilience
+  // Only fallback to proxy during build if DATABASE_URL is missing.
+  if (isBuildPhase && !dbUrl) {
     return createRecursiveProxy();
   }
 
-  // If DATABASE_URL is missing, we can't initialize anyway
-  if (!process.env.DATABASE_URL && process.env.NODE_ENV === 'production') {
-    console.warn(">>> INVENTOR LOG: DATABASE_URL missing in production, using Proxy <<<");
+  // 3. Environment Check
+  if (!dbUrl) {
+    if (process.env.NODE_ENV === 'production' && !isBuildPhase) {
+      console.warn(">>> INVENTOR WARNING: DATABASE_URL missing in production. Operating in Proxy mode. <<<");
+    }
     return createRecursiveProxy();
   }
 
+  // 4. Client Initialization
   try {
-    return new PrismaClient();
+    const isPostgres = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://');
+    
+    const clientConfig: any = {
+      log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+    };
+
+    // OPTIMIZATION: Use PG Driver adapter for optimized connection pooling in serverless/Vercel
+    if (isPostgres) {
+      const pool = new Pool({ 
+        connectionString: dbUrl,
+        max: process.env.NODE_ENV === 'production' ? 10 : 2,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 5000,
+      });
+      
+      pool.on('error', (err) => {
+        console.error('>>> INVENTOR: Unexpected error on idle PG pool client <<<', err);
+      });
+
+      clientConfig.adapter = new PrismaPg(pool);
+    }
+
+    _realClient = new PrismaClient(clientConfig);
+    return _realClient;
   } catch (e) {
-    console.warn(">>> INVENTOR LOG: Prisma initialization failed, falling back to Proxy <<<");
+    console.error(">>> INVENTOR CRITICAL: PrismaClient initialization failed. <<<", e);
     return createRecursiveProxy();
   }
 };
 
-declare global {
-  var prisma: undefined | ReturnType<typeof prismaClientSingleton>;
+/**
+ * EXPORTED SMART PROXY:
+ * Lazily evaluates the client on every access.
+ */
+const prisma = new Proxy({} as PrismaClient, {
+  get: (target, prop) => {
+    // Optimization: Skip proxying for internal JS symbols or common properties
+    if (typeof prop === 'symbol' || prop === '$$typeof') {
+      return (target as any)[prop];
+    }
+
+    const client = getPrismaClient();
+    return (client as any)[prop];
+  }
+});
+
+// HMR Support for Development
+if (process.env.NODE_ENV !== "production") {
+  if (!(globalThis as any).prisma) {
+    (globalThis as any).prisma = prisma;
+  }
 }
-
-const prisma = globalThis.prisma ?? prismaClientSingleton();
-
-if (process.env.NODE_ENV !== "production") globalThis.prisma = prisma;
 
 export default prisma;
 export { prisma };

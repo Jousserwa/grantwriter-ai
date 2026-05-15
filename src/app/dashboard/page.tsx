@@ -25,6 +25,15 @@ export default async function DashboardPage() {
             orderBy: { updatedAt: 'desc' },
             take: 3,
             include: { grant: true }
+          },
+          deadlines: {
+            where: {
+              grant: {
+                deadline: {
+                  gte: new Date()
+                }
+              }
+            }
           }
         }
       }
@@ -32,13 +41,37 @@ export default async function DashboardPage() {
   });
 
   const org = user?.organization;
-  const proposals = org?.proposals || [];
+  const proposals = await prisma.proposal.findMany({
+    where: { organizationId: org?.id }
+  });
+  
+  const wonProposals = proposals.filter(p => p.status === 'WON').length;
+  const submittedProposals = proposals.filter(p => ['SUBMITTED', 'WON', 'LOST'].includes(p.status)).length;
+  const successRate = submittedProposals > 0 
+    ? Math.round((wonProposals / submittedProposals) * 100) 
+    : 0;
+
+  const activeGrantsCount = await prisma.grant.count({
+    where: {
+      deadline: {
+        gte: new Date()
+      }
+    }
+  });
+
+  const recommendedGrants = await prisma.grant.findMany({
+    where: {
+      sector: org?.sector || undefined
+    },
+    take: 3,
+    orderBy: { createdAt: 'desc' }
+  });
 
   const stats = [
     { name: 'Total Proposals', value: proposals.length.toString(), icon: FileText, color: 'bg-blue-500' },
-    { name: 'Active Grants', value: '45', icon: Search, color: 'bg-green-500' },
-    { name: 'Upcoming Deadlines', value: '3', icon: Clock, color: 'bg-yellow-500' },
-    { name: 'Success Rate', value: '68%', icon: CheckCircle2, color: 'bg-purple-500' },
+    { name: 'Active Grants', value: activeGrantsCount.toString(), icon: Search, color: 'bg-green-500' },
+    { name: 'Upcoming Deadlines', value: (org?.deadlines.length || 0).toString(), icon: Clock, color: 'bg-yellow-500' },
+    { name: 'Success Rate', value: `${successRate}%`, icon: CheckCircle2, color: 'bg-purple-500' },
   ];
 
   return (
@@ -102,15 +135,17 @@ export default async function DashboardPage() {
             <Link href="/dashboard/grants" className="text-sm text-blue-600 font-medium hover:underline">Explore</Link>
           </div>
           <div className="space-y-4">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="flex items-center justify-between rounded-lg border border-slate-100 p-4 hover:bg-slate-50 transition-colors">
+            {recommendedGrants.length === 0 ? (
+              <p className="text-sm text-slate-500 italic py-4">No recommended grants found.</p>
+            ) : recommendedGrants.map((grant) => (
+              <div key={grant.id} className="flex items-center justify-between rounded-lg border border-slate-100 p-4 hover:bg-slate-50 transition-colors">
                 <div className="flex items-center">
                   <div className="mr-3 h-10 w-10 rounded-full bg-green-50 flex items-center justify-center text-green-600">
                     <Search className="h-5 w-5" />
                   </div>
                   <div>
-                    <p className="font-medium text-slate-800">Global Tech Grant {i}</p>
-                    <p className="text-xs text-slate-500">Deadline: Oct 2024</p>
+                    <p className="font-medium text-slate-800">{grant.title}</p>
+                    <p className="text-xs text-slate-500">Deadline: {grant.deadline ? grant.deadline.toLocaleDateString() : 'N/A'}</p>
                   </div>
                 </div>
                 <Link href="/dashboard/grants" className="text-sm font-medium text-blue-600 hover:text-blue-700">View</Link>
