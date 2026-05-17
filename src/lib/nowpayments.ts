@@ -24,9 +24,9 @@ export async function createInvoice({
       pay_currency: payCurrency,
       order_id: orderId,
       order_description: description,
-      ipn_callback_url: `${process.env.NEXTAUTH_URL}/api/payments/nowpayments/webhook`,
-      success_url: `${process.env.NEXTAUTH_URL}/dashboard?payment=success`,
-      cancel_url: `${process.env.NEXTAUTH_URL}/pricing?payment=cancelled`,
+      ipn_callback_url: `https://grantwriter-ai-olive.vercel.app/api/payments/nowpayments/webhook`,
+      success_url: `https://grantwriter-ai-olive.vercel.app/dashboard?payment=success`,
+      cancel_url: `https://grantwriter-ai-olive.vercel.app/pricing?payment=cancelled`,
     }),
   });
 
