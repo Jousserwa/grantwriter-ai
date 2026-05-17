@@ -6,7 +6,7 @@ import TeamMemberTable from "./TeamMemberTable";
 export default async function TeamPage() {
   const session = await auth();
   if (!session?.user?.id) {
-    redirect("/auth/signin");
+    redirect("/api/auth/signin");
   }
 
   const user = await prisma.user.findUnique({
