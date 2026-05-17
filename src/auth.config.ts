@@ -19,6 +19,9 @@ export const authConfig = {
       },
     }),
   ],
+  pages: {
+    signIn: "/auth/signin",
+  },
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
