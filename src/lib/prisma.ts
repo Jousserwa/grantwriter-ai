@@ -58,7 +58,7 @@ const getPrismaClient = (): PrismaClient => {
   // 1. Singleton Return
   if (_realClient) return _realClient;
 
-  const dbUrl = process.env.DATABASE_URL;
+  const dbUrl = process.env.DATABASE_URL || process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL;
 
   // 2. Build-Time Resilience
   // Only fallback to proxy during build if DATABASE_URL is missing.
